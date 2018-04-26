@@ -1,9 +1,12 @@
 package main
 
 import (
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/html"
 )
 
 func TestNewChecker(t *testing.T) {
@@ -59,6 +62,29 @@ func TestCheckerCheckPageError(t *testing.T) {
 	go c.checkPage(*p)
 
 	assert.False(t, (<-c.Results()).OK())
+}
+
+func TestResolveURL(t *testing.T) {
+	n, err := html.Parse(strings.NewReader(`<html><head><base href="/foo/" /></head></html>`))
+	assert.Nil(t, err)
+
+	u, err := url.Parse("bar")
+	assert.Nil(t, err)
+
+	u, err = resolveURL(newPage("http://localhost", n), u)
+	assert.Nil(t, err)
+	assert.Equal(t, "http://localhost/foo/bar", u.String())
+}
+
+func TestResolveURLError(t *testing.T) {
+	n, err := html.Parse(strings.NewReader(`<html><head><base href=":" /></head></html>`))
+	assert.Nil(t, err)
+
+	u, err := url.Parse("bar")
+	assert.Nil(t, err)
+
+	_, err = resolveURL(newPage("http://localhost", n), u)
+	assert.NotNil(t, err)
 }
 
 func TestStringChannelToSlice(t *testing.T) {
